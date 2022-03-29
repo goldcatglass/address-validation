@@ -135,7 +135,7 @@ app.post('/address/validation', async (req, res) => {
           `</summary>` + 
           `<upsResponse>${data.split('<?xml version="1.0"?>').join('')}</upsResponse>` + 
         `</avResponse>`;
-      res.send(response);
+      res.set('Content-Type', 'application/xml').send(response);
     });
   } catch (e) {
     res.json({ e });
