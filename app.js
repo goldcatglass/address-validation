@@ -126,7 +126,7 @@ app.post('/address/validation', async (req, res) => {
           `</suggestedAddress>`;
       });
 
-      const response = `<avResponse>` + 
+      const response = `<?xml version="1.0" encoding="UTF-8"?><avResponse>` + 
           `<summary>` + 
               `<requestStatus>${resultStatus}</requestStatus>` + 
               `<addressIndicator>${addressIndicator}</addressIndicator>` + 
