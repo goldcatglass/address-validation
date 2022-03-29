@@ -1,0 +1,27 @@
+{
+  "name": "address-validation-service",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "nodemon app.js"
+  },
+  "dependencies": {
+    "axios": "^0.24.0",
+    "bcrypt": "^5.0.1",
+    "brcypt": "^1.0.1",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "~4.16.1",
+    "express-xml-bodyparser": "^0.3.0",
+    "http-errors": "~1.6.3",
+    "joi": "^17.4.0",
+    "moment": "^2.29.1",
+    "morgan": "~1.9.1",
+    "mysql2": "^2.2.5",
+    "sequelize": "^4.42.0",
+    "xml2js": "^0.4.23"
+  },
+  "devDependencies": {
+    "sequelize-cli": "4.0.0"
+  }
+}
