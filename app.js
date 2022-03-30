@@ -133,7 +133,7 @@ app.post('/address/validation', async (req, res) => {
           geometry = response.data.results[0].geometry?.location;
           if (geometry?.lat === request_geo?.lat && geometry?.lng === request_geo?.lng) match = 'Match';
         }
-        if (match !== 'Match' && geometry) {
+        if (geometry) {
           return `<addressMatch>${match}</addressMatch>` + 
             `<suggestedAddress>` + 
               `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` + 
@@ -143,8 +143,21 @@ app.post('/address/validation', async (req, res) => {
               `<state>${addressKeyFormat.PoliticalDivision1[0] || ''}</state>` + 
               `<zip>${addressKeyFormat.PostcodePrimaryLow[0] || ''}</zip>` + 
               `<country>${addressKeyFormat.CountryCode[0] || ''}</country>` + 
-              `<latitude>${geo?.lat || ''}</latitude>` + 
-              `<longitude>${geo?.lng || ''}</longitude>` + 
+              `<latitude>${geometry?.lat || ''}</latitude>` + 
+              `<longitude>${geometry?.lng || ''}</longitude>` + 
+            `</suggestedAddress>`;
+        } else if (request_geo) {
+          return `<addressMatch>${match}</addressMatch>` + 
+            `<suggestedAddress>` + 
+              `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` + 
+              `<line2>${addressKeyFormat.AddressLine[1] || ''}</line2>` + 
+              `<line3>${addressKeyFormat.AddressLine[2] || ''}</line3>` + 
+              `<city>${addressKeyFormat.PoliticalDivision2[0] || ''}</city>` + 
+              `<state>${addressKeyFormat.PoliticalDivision1[0] || ''}</state>` + 
+              `<zip>${addressKeyFormat.PostcodePrimaryLow[0] || ''}</zip>` + 
+              `<country>${addressKeyFormat.CountryCode[0] || ''}</country>` + 
+              `<latitude>${request_geo?.lat || ''}</latitude>` + 
+              `<longitude>${request_geo?.lng || ''}</longitude>` + 
             `</suggestedAddress>`;
         } else {
           return `<addressMatch>${match}</addressMatch>` + 
