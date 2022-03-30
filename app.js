@@ -83,7 +83,13 @@ app.post('/address/validation', async (req, res) => {
         'Content-Type': 'text/plan',
       },
     });
-    xml2js.parseString(data, (e, result) => {
+    let fulladdress = `${body.line1[0] || ''}+${body.line2[0] || ''}+${body.city[0] || ''}+${body.state[0] || ''}+${body.zip[0] || ''}+${body.country[0] || ''}`;
+    while (fulladdress.match(/\+\+| |  /gi)) fulladdress = fulladdress.replace(/\+\+| |  /gi, '+');
+    let result = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?address=${fulladdress}&key=AIzaSyDFEd8eSc_cvYicFwYec1K2973C8xZuSP4`);
+
+    const request_geo = result.data.results[0].geometry?.location;
+
+    xml2js.parseString(data, async (e, result) => {
       const resultStatus = result.AddressValidationResponse.Response[0].ResponseStatusCode[0] == '1' ? 'True' : 'False';
       const addressIndicator = result.AddressValidationResponse.ValidAddressIndicator
         ? 'Valid'
@@ -91,8 +97,8 @@ app.post('/address/validation', async (req, res) => {
         ? 'Ambiguou'
         : 'Invalid';
       const addressClassification = result.AddressValidationResponse.AddressClassification[0].Description[0];
-      const addressKeyFormats = (result.AddressValidationResponse.AddressKeyFormat || []).map((addressKeyFormat) => {
-        var match = null;
+      const addressKeyFormats = await Promise.all((result.AddressValidationResponse.AddressKeyFormat || []).map(async (addressKeyFormat) => {
+        var match = null, geometry = null;
         if (
           result.AddressValidationResponse.ValidAddressIndicator &&
           (body.line1[0] || '').toLowerCase() === (addressKeyFormat.AddressLine[0] || '').toLowerCase() &&
@@ -114,17 +120,39 @@ app.post('/address/validation', async (req, res) => {
           match = 'Line2 Mismatch';
         }
 
-        return `<addressMatch>${match}</addressMatch>` + 
-          `<suggestedAddress>` + 
-            `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` + 
-            `<line2>${addressKeyFormat.AddressLine[1] || ''}</line2>` + 
-            `<line3>${addressKeyFormat.AddressLine[2] || ''}</line3>` + 
-            `<city>${addressKeyFormat.PoliticalDivision2[0] || ''}</city>` + 
-            `<state>${addressKeyFormat.PoliticalDivision1[0] || ''}</state>` + 
-            `<zip>${addressKeyFormat.PostcodePrimaryLow[0] || ''}</zip>` + 
-            `<country>${addressKeyFormat.CountryCode[0] || ''}</country>` + 
-          `</suggestedAddress>`;
-      });
+        if (match !== 'Match' && addressIndicator === 'Valid') {
+          fulladdress = `${addressKeyFormat.AddressLine[0] || ''}+${addressKeyFormat.AddressLine[1] || ''}+${addressKeyFormat.PoliticalDivision2[0] || ''}+${addressKeyFormat.PoliticalDivision1[0] || ''}+${addressKeyFormat.PostcodePrimaryLow[0] || ''}+${addressKeyFormat.CountryCode[0] || ''}`;
+          while (fulladdress.match(/\+\+| |  /gi)) fulladdress = fulladdress.replace(/\+\+| |  /gi, '+');
+          const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?address=${fulladdress}&key=AIzaSyDFEd8eSc_cvYicFwYec1K2973C8xZuSP4`);
+          geometry = response.data.results[0].geometry?.location;
+          if (geometry?.lat === request_geo?.lat && geometry?.lng === request_geo?.lng) match = 'Match';
+        }
+        if (match !== 'Match' && geometry) {
+          return `<addressMatch>${match}</addressMatch>` + 
+            `<suggestedAddress>` + 
+              `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` + 
+              `<line2>${addressKeyFormat.AddressLine[1] || ''}</line2>` + 
+              `<line3>${addressKeyFormat.AddressLine[2] || ''}</line3>` + 
+              `<city>${addressKeyFormat.PoliticalDivision2[0] || ''}</city>` + 
+              `<state>${addressKeyFormat.PoliticalDivision1[0] || ''}</state>` + 
+              `<zip>${addressKeyFormat.PostcodePrimaryLow[0] || ''}</zip>` + 
+              `<country>${addressKeyFormat.CountryCode[0] || ''}</country>` + 
+              `<latitude>${geo?.lat || ''}</latitude>` + 
+              `<longitude>${geo?.lng || ''}</longitude>` + 
+            `</suggestedAddress>`;
+        } else {
+          return `<addressMatch>${match}</addressMatch>` + 
+            `<suggestedAddress>` + 
+              `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` + 
+              `<line2>${addressKeyFormat.AddressLine[1] || ''}</line2>` + 
+              `<line3>${addressKeyFormat.AddressLine[2] || ''}</line3>` + 
+              `<city>${addressKeyFormat.PoliticalDivision2[0] || ''}</city>` + 
+              `<state>${addressKeyFormat.PoliticalDivision1[0] || ''}</state>` + 
+              `<zip>${addressKeyFormat.PostcodePrimaryLow[0] || ''}</zip>` + 
+              `<country>${addressKeyFormat.CountryCode[0] || ''}</country>` + 
+            `</suggestedAddress>`;
+        }
+      }));
 
       const response = `<?xml version="1.0" encoding="UTF-8"?><avResponse>` + 
           `<summary>` + 
