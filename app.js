@@ -146,7 +146,7 @@ app.post('/address/validation', async (req, res) => {
               `<latitude>${geometry?.lat || ''}</latitude>` + 
               `<longitude>${geometry?.lng || ''}</longitude>` + 
             `</suggestedAddress>`;
-        } else if (request_geo) {
+        } else if (request_geo && match === 'Match') {
           return `<addressMatch>${match}</addressMatch>` + 
             `<suggestedAddress>` + 
               `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` + 
