@@ -86,7 +86,7 @@ app.post('/address/validation', async (req, res) => {
 
     const site_reference = await SiteReference.findOne({
       where: {
-        site_name: 'Google API'
+        site_name: 'Google'
       }
     });
     let fulladdress = `${body.line1[0] || ''}+${body.line2[0] || ''}+${body.city[0] || ''}+${body.state[0] || ''}+${body.zip[0] || ''}+${body.country[0] || ''}`;
@@ -172,6 +172,7 @@ app.post('/address/validation', async (req, res) => {
       res.set('Content-Type', 'application/xml').send(response);
     });
   } catch (e) {
+    console.log(e);
     res.json({ e });
   }
 });
