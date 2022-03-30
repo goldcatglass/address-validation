@@ -2,6 +2,11 @@ module.exports = function (sequelize, DataTypes) {
   const SiteReference = sequelize.define(
     'SiteReference',
     {
+      site_reference_id: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+      },
       site_name: {
         type: DataTypes.STRING(150),
       },
