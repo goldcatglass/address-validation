@@ -10,6 +10,7 @@ const sequelize = config.use_env_variable
   : new Sequelize(config.database, config.username, config.password, config);
 
 db.User = sequelize.import(path.resolve(__dirname, 'User.js'));
+db.SiteReference = sequelize.import(path.resolve(__dirname, 'SiteReference.js'));
 
 Object.keys(db).forEach((modelName) => {
   if (db[modelName].associate) {

@@ -6,7 +6,7 @@ const cors = require('cors');
 const xmlparser = require('express-xml-bodyparser');
 const axios = require('axios').default;
 const xml2js = require('xml2js');
-const { User } = require('./db/models');
+const { User, SiteReference } = require('./db/models');
 const bcrypt = require('bcrypt');
 
 const app = express();
@@ -83,9 +83,15 @@ app.post('/address/validation', async (req, res) => {
         'Content-Type': 'text/plan',
       },
     });
+
+    const site_reference = await SiteReference.findOne({
+      where: {
+        site_name: 'Google API'
+      }
+    });
     let fulladdress = `${body.line1[0] || ''}+${body.line2[0] || ''}+${body.city[0] || ''}+${body.state[0] || ''}+${body.zip[0] || ''}+${body.country[0] || ''}`;
     while (fulladdress.match(/\+\+| |  /gi)) fulladdress = fulladdress.replace(/\+\+| |  /gi, '+');
-    let result = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?address=${fulladdress}&key=AIzaSyDFEd8eSc_cvYicFwYec1K2973C8xZuSP4`);
+    let result = await axios.get(`${site_reference.site_url}/maps/api/geocode/json?address=${fulladdress}&key=${site_reference.site_password}`);
 
     const request_geo = result.data.results[0].geometry?.location;
 
@@ -123,7 +129,7 @@ app.post('/address/validation', async (req, res) => {
         if (match !== 'Match' && addressIndicator === 'Valid') {
           fulladdress = `${addressKeyFormat.AddressLine[0] || ''}+${addressKeyFormat.AddressLine[1] || ''}+${addressKeyFormat.PoliticalDivision2[0] || ''}+${addressKeyFormat.PoliticalDivision1[0] || ''}+${addressKeyFormat.PostcodePrimaryLow[0] || ''}+${addressKeyFormat.CountryCode[0] || ''}`;
           while (fulladdress.match(/\+\+| |  /gi)) fulladdress = fulladdress.replace(/\+\+| |  /gi, '+');
-          const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?address=${fulladdress}&key=AIzaSyDFEd8eSc_cvYicFwYec1K2973C8xZuSP4`);
+          const response = await axios.get(`${site_reference.site_url}/maps/api/geocode/json?address=${fulladdress}&key=${site_reference.site_password}`);
           geometry = response.data.results[0].geometry?.location;
           if (geometry?.lat === request_geo?.lat && geometry?.lng === request_geo?.lng) match = 'Match';
         }
