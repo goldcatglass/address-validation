@@ -111,6 +111,7 @@ app.post('/address/validation', async (req, res) => {
         if (match !== 'Match' && addressIndicator === 'Valid') {
           fulladdress = `${addressKeyFormat.AddressLine[0] || ''}+${addressKeyFormat.AddressLine[1] || ''}+${addressKeyFormat.PoliticalDivision2[0] || ''}+${addressKeyFormat.PoliticalDivision1[0] || ''}+${addressKeyFormat.PostcodePrimaryLow[0] || ''}+${addressKeyFormat.CountryCode[0] || ''}`;
           while (fulladdress.match(/\+\+| |  /gi)) fulladdress = fulladdress.replace(/\+\+| |  /gi, '+');
+          fulladdress = encodeURIComponent(fulladdress);
           const response = await axios.get(`${site_reference.site_url}/maps/api/geocode/json?address=${fulladdress}&key=${site_reference.site_password}`);
           geometry = response.data.results[0].geometry?.location;
           if (geometry?.lat === request_geo?.lat && geometry?.lng === request_geo?.lng) match = 'Match';
