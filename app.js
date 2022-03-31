@@ -8,6 +8,7 @@ const axios = require('axios').default;
 const xml2js = require('xml2js');
 const { User, SiteReference } = require('./db/models');
 const bcrypt = require('bcrypt');
+const { getMatchFromUPSResponse } = require('./helpers');
 
 const app = express();
 
@@ -100,31 +101,12 @@ app.post('/address/validation', async (req, res) => {
       const addressIndicator = result.AddressValidationResponse.ValidAddressIndicator
         ? 'Valid'
         : result.AddressValidationResponse.AmbiguousAddressIndicator
-        ? 'Ambiguou'
-        : 'Invalid';
+          ? 'Ambiguou'
+          : 'Invalid';
       const addressClassification = result.AddressValidationResponse.AddressClassification[0].Description[0];
       const addressKeyFormats = await Promise.all((result.AddressValidationResponse.AddressKeyFormat || []).map(async (addressKeyFormat) => {
-        var match = null, geometry = null;
-        if (
-          result.AddressValidationResponse.ValidAddressIndicator &&
-          (body.line1[0] || '').toLowerCase() === (addressKeyFormat.AddressLine[0] || '').toLowerCase() &&
-          (body.line2[0] || '').toLowerCase() === (addressKeyFormat.AddressLine[1] || '').toLowerCase() &&
-          (body.state[0] || '').toLowerCase() === (addressKeyFormat.PoliticalDivision1[0] || '').toLowerCase() &&
-          (body.city[0] || '').toLowerCase() === (addressKeyFormat.PoliticalDivision2[0] || '').toLowerCase() &&
-          (body.zip[0] || '').toLowerCase() === (addressKeyFormat.PostcodePrimaryLow[0] || '').toLowerCase()
-        ) {
-          match = 'Match';
-        } else if (
-          body.state[0] !== addressKeyFormat.PoliticalDivision1[0] ||
-          (body.city[0] || '').toLowerCase() !== (addressKeyFormat.PoliticalDivision2[0] || '').toLowerCase() ||
-          (body.zip[0] || '').toLowerCase() !== (addressKeyFormat.PostcodePrimaryLow[0] || '').toLowerCase()
-        ) {
-          match = 'Mismatch';
-        } else if ((body.line1[0] || '').toLowerCase() !== (addressKeyFormat.AddressLine[0] || '').toLowerCase()) {
-          match = 'Line1 Mismatch';
-        } else if ((body.line2[0] || '').toLowerCase() !== (addressKeyFormat.AddressLine[1] || '').toLowerCase()) {
-          match = 'Line2 Mismatch';
-        }
+        var match = getMatchFromUPSResponse(result.AddressValidationResponse.ValidAddressIndicator, addressKeyFormat, body);
+        var geometry = null;
 
         if (match !== 'Match' && addressIndicator === 'Valid') {
           fulladdress = `${addressKeyFormat.AddressLine[0] || ''}+${addressKeyFormat.AddressLine[1] || ''}+${addressKeyFormat.PoliticalDivision2[0] || ''}+${addressKeyFormat.PoliticalDivision1[0] || ''}+${addressKeyFormat.PostcodePrimaryLow[0] || ''}+${addressKeyFormat.CountryCode[0] || ''}`;
@@ -133,54 +115,34 @@ app.post('/address/validation', async (req, res) => {
           geometry = response.data.results[0].geometry?.location;
           if (geometry?.lat === request_geo?.lat && geometry?.lng === request_geo?.lng) match = 'Match';
         }
-        if (geometry) {
-          return `<addressMatch>${match}</addressMatch>` + 
-            `<suggestedAddress>` + 
-              `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` + 
-              `<line2>${addressKeyFormat.AddressLine[1] || ''}</line2>` + 
-              `<line3>${addressKeyFormat.AddressLine[2] || ''}</line3>` + 
-              `<city>${addressKeyFormat.PoliticalDivision2[0] || ''}</city>` + 
-              `<state>${addressKeyFormat.PoliticalDivision1[0] || ''}</state>` + 
-              `<zip>${addressKeyFormat.PostcodePrimaryLow[0] || ''}</zip>` + 
-              `<country>${addressKeyFormat.CountryCode[0] || ''}</country>` + 
-              `<latitude>${geometry?.lat || ''}</latitude>` + 
-              `<longitude>${geometry?.lng || ''}</longitude>` + 
-            `</suggestedAddress>`;
-        } else if (request_geo && match === 'Match') {
-          return `<addressMatch>${match}</addressMatch>` + 
-            `<suggestedAddress>` + 
-              `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` + 
-              `<line2>${addressKeyFormat.AddressLine[1] || ''}</line2>` + 
-              `<line3>${addressKeyFormat.AddressLine[2] || ''}</line3>` + 
-              `<city>${addressKeyFormat.PoliticalDivision2[0] || ''}</city>` + 
-              `<state>${addressKeyFormat.PoliticalDivision1[0] || ''}</state>` + 
-              `<zip>${addressKeyFormat.PostcodePrimaryLow[0] || ''}</zip>` + 
-              `<country>${addressKeyFormat.CountryCode[0] || ''}</country>` + 
-              `<latitude>${request_geo?.lat || ''}</latitude>` + 
-              `<longitude>${request_geo?.lng || ''}</longitude>` + 
-            `</suggestedAddress>`;
-        } else {
-          return `<addressMatch>${match}</addressMatch>` + 
-            `<suggestedAddress>` + 
-              `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` + 
-              `<line2>${addressKeyFormat.AddressLine[1] || ''}</line2>` + 
-              `<line3>${addressKeyFormat.AddressLine[2] || ''}</line3>` + 
-              `<city>${addressKeyFormat.PoliticalDivision2[0] || ''}</city>` + 
-              `<state>${addressKeyFormat.PoliticalDivision1[0] || ''}</state>` + 
-              `<zip>${addressKeyFormat.PostcodePrimaryLow[0] || ''}</zip>` + 
-              `<country>${addressKeyFormat.CountryCode[0] || ''}</country>` + 
-            `</suggestedAddress>`;
-        }
+        return `<addressMatch>${match}</addressMatch>` +
+          `<suggestedAddress>` +
+          `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` +
+          `<line2>${addressKeyFormat.AddressLine[1] || ''}</line2>` +
+          `<line3>${addressKeyFormat.AddressLine[2] || ''}</line3>` +
+          `<city>${addressKeyFormat.PoliticalDivision2[0] || ''}</city>` +
+          `<state>${addressKeyFormat.PoliticalDivision1[0] || ''}</state>` +
+          `<zip>${addressKeyFormat.PostcodePrimaryLow[0] || ''}</zip>` +
+          `<country>${addressKeyFormat.CountryCode[0] || ''}</country>` +
+          (geometry ? `<latitude>${geometry?.lat || ''}</latitude>` +
+            `<longitude>${geometry?.lng || ''}</longitude>` : '') +
+          `</suggestedAddress>` +
+          (match === 'Match' ? `<Line1Match>${(body.line1[0] || '').toLowerCase() === (addressKeyFormat.AddressLine[0] || '').toLowerCase() ? 'True' : 'False'}</Line1Match>` +
+            `<Line2Match>${(body.line2[0] || '').toLowerCase() === (addressKeyFormat.AddressLine[1] || '').toLowerCase() ? 'True' : 'False'}</Line2Match>` +
+            `<CityMatch>${(body.city[0] || '').toLowerCase() === (addressKeyFormat.PoliticalDivision2[0] || '').toLowerCase() ? 'True' : 'False'}</CityMatch>` +
+            `<StateMatch>${(body.state[0] || '').toLowerCase() === (addressKeyFormat.PoliticalDivision1[0] || '').toLowerCase() ? 'True' : 'False'}</StateMatch>` +
+            `<ZipMatch>${(body.zip[0] || '').toLowerCase() === (addressKeyFormat.PostcodePrimaryLow[0] || '').toLowerCase() ? 'True' : 'False'}</ZipMatch>` +
+            `<CountryMatch>${(body.country[0] || '').toLowerCase() === (addressKeyFormat.CountryCode[0] || '').toLowerCase() ? 'True' : 'False'}</CountryMatch>` : '');
       }));
 
-      const response = `<?xml version="1.0" encoding="UTF-8"?><avResponse>` + 
-          `<summary>` + 
-              `<requestStatus>${resultStatus}</requestStatus>` + 
-              `<addressIndicator>${addressIndicator}</addressIndicator>` + 
-              `<addressClassification>${addressClassification}</addressClassification>` + 
-              addressKeyFormats.join('') + 
-          `</summary>` + 
-          `<upsResponse>${data.split('<?xml version="1.0"?>').join('')}</upsResponse>` + 
+      const response = `<?xml version="1.0" encoding="UTF-8"?><avResponse>` +
+        `<summary>` +
+        `<requestStatus>${resultStatus}</requestStatus>` +
+        `<addressIndicator>${addressIndicator}</addressIndicator>` +
+        `<addressClassification>${addressClassification}</addressClassification>` +
+        addressKeyFormats.join('') +
+        `</summary>` +
+        `<upsResponse>${data.split('<?xml version="1.0"?>').join('')}</upsResponse>` +
         `</avResponse>`;
       res.set('Content-Type', 'application/xml').send(response);
     });
