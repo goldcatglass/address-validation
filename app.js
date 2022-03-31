@@ -40,7 +40,6 @@ app.use(async (req, res, next) => {
       }
     });
   } catch (e) {
-    console.log(e);
     res.status(401).json({
       authorized: false,
     });
@@ -138,7 +137,7 @@ app.post('/address/validation', async (req, res) => {
               `<ZipMatch>${(body.zip[0] || '').toLowerCase() === (addressKeyFormat.PostcodePrimaryLow[0] || '').toLowerCase() ? 'True' : 'False'}</ZipMatch>` +
               `<CountryMatch>${(body.country[0] || '').toLowerCase() === (addressKeyFormat.CountryCode[0] || '').toLowerCase() ? 'True' : 'False'}</CountryMatch>` : '');
         }));
-  
+
         const response = `<?xml version="1.0" encoding="UTF-8"?><avResponse>` +
           `<summary>` +
           `<requestStatus>${resultStatus}</requestStatus>` +
