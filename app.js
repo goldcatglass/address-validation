@@ -92,8 +92,8 @@ app.post('/address/validation', async (req, res) => {
     });
     let fulladdress = `${body.line1[0] || ''}+${body.line2[0] || ''}+${body.city[0] || ''}+${body.state[0] || ''}+${body.zip[0] || ''}+${body.country[0] || ''}`;
     while (fulladdress.match(/\+\+| |  /gi)) fulladdress = fulladdress.replace(/\+\+| |  /gi, '+');
+    fulladdress = encodeURIComponent(fulladdress);
     let result = await axios.get(`${site_reference.site_url}/maps/api/geocode/json?address=${fulladdress}&key=${site_reference.site_password}`);
-
     const request_geo = result.data.results[0].geometry?.location;
 
     xml2js.parseString(data, async (e, result) => {
