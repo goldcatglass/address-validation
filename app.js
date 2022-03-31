@@ -97,55 +97,62 @@ app.post('/address/validation', async (req, res) => {
     const request_geo = result.data.results[0].geometry?.location;
 
     xml2js.parseString(data, async (e, result) => {
-      const resultStatus = result.AddressValidationResponse.Response[0].ResponseStatusCode[0] == '1' ? 'True' : 'False';
-      const addressIndicator = result.AddressValidationResponse.ValidAddressIndicator
-        ? 'Valid'
-        : result.AddressValidationResponse.AmbiguousAddressIndicator
-          ? 'Ambiguou'
-          : 'Invalid';
-      const addressClassification = result.AddressValidationResponse.AddressClassification[0].Description[0];
-      const addressKeyFormats = await Promise.all((result.AddressValidationResponse.AddressKeyFormat || []).map(async (addressKeyFormat) => {
-        var match = getMatchFromUPSResponse(result.AddressValidationResponse.ValidAddressIndicator, addressKeyFormat, body);
-        var geometry = null;
-
-        if (match !== 'Match' && addressIndicator === 'Valid') {
-          fulladdress = `${addressKeyFormat.AddressLine[0] || ''}+${addressKeyFormat.AddressLine[1] || ''}+${addressKeyFormat.PoliticalDivision2[0] || ''}+${addressKeyFormat.PoliticalDivision1[0] || ''}+${addressKeyFormat.PostcodePrimaryLow[0] || ''}+${addressKeyFormat.CountryCode[0] || ''}`;
-          while (fulladdress.match(/\+\+| |  /gi)) fulladdress = fulladdress.replace(/\+\+| |  /gi, '+');
-          fulladdress = encodeURIComponent(fulladdress);
-          const response = await axios.get(`${site_reference.site_url}/maps/api/geocode/json?address=${fulladdress}&key=${site_reference.site_password}`);
-          geometry = response.data.results[0].geometry?.location;
-          if (geometry?.lat === request_geo?.lat && geometry?.lng === request_geo?.lng) match = 'Match';
-        }
-        return `<addressMatch>${match}</addressMatch>` +
-          `<suggestedAddress>` +
-          `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` +
-          `<line2>${addressKeyFormat.AddressLine[1] || ''}</line2>` +
-          `<line3>${addressKeyFormat.AddressLine[2] || ''}</line3>` +
-          `<city>${addressKeyFormat.PoliticalDivision2[0] || ''}</city>` +
-          `<state>${addressKeyFormat.PoliticalDivision1[0] || ''}</state>` +
-          `<zip>${addressKeyFormat.PostcodePrimaryLow[0] || ''}</zip>` +
-          `<country>${addressKeyFormat.CountryCode[0] || ''}</country>` +
-          (geometry ? `<latitude>${geometry?.lat || ''}</latitude>` +
-            `<longitude>${geometry?.lng || ''}</longitude>` : '') +
-          `</suggestedAddress>` +
-          (match === 'Match' ? `<Line1Match>${(body.line1[0] || '').toLowerCase() === (addressKeyFormat.AddressLine[0] || '').toLowerCase() ? 'True' : 'False'}</Line1Match>` +
-            `<Line2Match>${(body.line2[0] || '').toLowerCase() === (addressKeyFormat.AddressLine[1] || '').toLowerCase() ? 'True' : 'False'}</Line2Match>` +
-            `<CityMatch>${(body.city[0] || '').toLowerCase() === (addressKeyFormat.PoliticalDivision2[0] || '').toLowerCase() ? 'True' : 'False'}</CityMatch>` +
-            `<StateMatch>${(body.state[0] || '').toLowerCase() === (addressKeyFormat.PoliticalDivision1[0] || '').toLowerCase() ? 'True' : 'False'}</StateMatch>` +
-            `<ZipMatch>${(body.zip[0] || '').toLowerCase() === (addressKeyFormat.PostcodePrimaryLow[0] || '').toLowerCase() ? 'True' : 'False'}</ZipMatch>` +
-            `<CountryMatch>${(body.country[0] || '').toLowerCase() === (addressKeyFormat.CountryCode[0] || '').toLowerCase() ? 'True' : 'False'}</CountryMatch>` : '');
-      }));
-
-      const response = `<?xml version="1.0" encoding="UTF-8"?><avResponse>` +
-        `<summary>` +
-        `<requestStatus>${resultStatus}</requestStatus>` +
-        `<addressIndicator>${addressIndicator}</addressIndicator>` +
-        `<addressClassification>${addressClassification}</addressClassification>` +
-        addressKeyFormats.join('') +
-        `</summary>` +
-        `<upsResponse>${data.split('<?xml version="1.0"?>').join('')}</upsResponse>` +
-        `</avResponse>`;
-      res.set('Content-Type', 'application/xml').send(response);
+      try {
+        const resultStatus = result.AddressValidationResponse.Response[0].ResponseStatusCode[0] == '1' ? 'True' : 'False';
+        const addressIndicator = result.AddressValidationResponse.ValidAddressIndicator
+          ? 'Valid'
+          : result.AddressValidationResponse.AmbiguousAddressIndicator
+            ? 'Ambiguou'
+            : 'Invalid';
+        const addressClassification = result.AddressValidationResponse.AddressClassification &&
+          result.AddressValidationResponse.AddressClassification[0].Description &&
+          result.AddressValidationResponse.AddressClassification[0].Description[0];
+        const addressKeyFormats = await Promise.all((result.AddressValidationResponse.AddressKeyFormat || []).map(async (addressKeyFormat) => {
+          var match = getMatchFromUPSResponse(result.AddressValidationResponse.ValidAddressIndicator, addressKeyFormat, body);
+          var geometry = null;
+  
+          if (match !== 'Match' && addressIndicator === 'Valid') {
+            fulladdress = `${addressKeyFormat.AddressLine[0] || ''}+${addressKeyFormat.AddressLine[1] || ''}+${addressKeyFormat.PoliticalDivision2[0] || ''}+${addressKeyFormat.PoliticalDivision1[0] || ''}+${addressKeyFormat.PostcodePrimaryLow[0] || ''}+${addressKeyFormat.CountryCode[0] || ''}`;
+            while (fulladdress.match(/\+\+| |  /gi)) fulladdress = fulladdress.replace(/\+\+| |  /gi, '+');
+            fulladdress = encodeURIComponent(fulladdress);
+            const response = await axios.get(`${site_reference.site_url}/maps/api/geocode/json?address=${fulladdress}&key=${site_reference.site_password}`);
+            geometry = response.data.results[0].geometry?.location;
+            if (geometry?.lat === request_geo?.lat && geometry?.lng === request_geo?.lng) match = 'Match';
+          }
+          return `<addressMatch>${match}</addressMatch>` +
+            `<suggestedAddress>` +
+            `<line1>${addressKeyFormat.AddressLine[0] || ''}</line1>` +
+            `<line2>${addressKeyFormat.AddressLine[1] || ''}</line2>` +
+            `<line3>${addressKeyFormat.AddressLine[2] || ''}</line3>` +
+            `<city>${addressKeyFormat.PoliticalDivision2[0] || ''}</city>` +
+            `<state>${addressKeyFormat.PoliticalDivision1[0] || ''}</state>` +
+            `<zip>${addressKeyFormat.PostcodePrimaryLow[0] || ''}</zip>` +
+            `<country>${addressKeyFormat.CountryCode[0] || ''}</country>` +
+            (geometry ? `<latitude>${geometry?.lat || ''}</latitude>` +
+              `<longitude>${geometry?.lng || ''}</longitude>` : '') +
+            `</suggestedAddress>` +
+            (match === 'Match' ? `<Line1Match>${(body.line1[0] || '').toLowerCase() === (addressKeyFormat.AddressLine[0] || '').toLowerCase() ? 'True' : 'False'}</Line1Match>` +
+              `<Line2Match>${(body.line2[0] || '').toLowerCase() === (addressKeyFormat.AddressLine[1] || '').toLowerCase() ? 'True' : 'False'}</Line2Match>` +
+              `<CityMatch>${(body.city[0] || '').toLowerCase() === (addressKeyFormat.PoliticalDivision2[0] || '').toLowerCase() ? 'True' : 'False'}</CityMatch>` +
+              `<StateMatch>${(body.state[0] || '').toLowerCase() === (addressKeyFormat.PoliticalDivision1[0] || '').toLowerCase() ? 'True' : 'False'}</StateMatch>` +
+              `<ZipMatch>${(body.zip[0] || '').toLowerCase() === (addressKeyFormat.PostcodePrimaryLow[0] || '').toLowerCase() ? 'True' : 'False'}</ZipMatch>` +
+              `<CountryMatch>${(body.country[0] || '').toLowerCase() === (addressKeyFormat.CountryCode[0] || '').toLowerCase() ? 'True' : 'False'}</CountryMatch>` : '');
+        }));
+  
+        const response = `<?xml version="1.0" encoding="UTF-8"?><avResponse>` +
+          `<summary>` +
+          `<requestStatus>${resultStatus}</requestStatus>` +
+          `<addressIndicator>${addressIndicator}</addressIndicator>` +
+          `<addressClassification>${addressClassification}</addressClassification>` +
+          addressKeyFormats.join('') +
+          `</summary>` +
+          `<upsResponse>${data.split('<?xml version="1.0"?>').join('')}</upsResponse>` +
+          `</avResponse>`;
+        res.set('Content-Type', 'application/xml').send(response);
+      } catch (e) {
+        console.log(e);
+        res.json({ e });
+      }
     });
   } catch (e) {
     console.log(e);
