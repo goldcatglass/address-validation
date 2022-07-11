@@ -93,7 +93,7 @@ app.post('/address/validation', async (req, res) => {
     while (fulladdress.match(/\+\+| |  /gi)) fulladdress = fulladdress.replace(/\+\+| |  /gi, '+');
     fulladdress = encodeURIComponent(fulladdress);
     let result = await axios.get(`${site_reference.site_url}/maps/api/geocode/json?address=${fulladdress}&key=${site_reference.site_password}`);
-    const request_geo = result.data.results[0].geometry?.location;
+    const request_geo = result.data.results[0] ? result.data.results[0].geometry?.location : undefined;
 
     xml2js.parseString(data, async (e, result) => {
       try {
@@ -115,7 +115,7 @@ app.post('/address/validation', async (req, res) => {
             while (fulladdress.match(/\+\+| |  /gi)) fulladdress = fulladdress.replace(/\+\+| |  /gi, '+');
             fulladdress = encodeURIComponent(fulladdress);
             const response = await axios.get(`${site_reference.site_url}/maps/api/geocode/json?address=${fulladdress}&key=${site_reference.site_password}`);
-            geometry = response.data.results[0].geometry?.location;
+            geometry = response.data.results[0] ? response.data.results[0].geometry?.location : undefined;
             if (geometry?.lat === request_geo?.lat && geometry?.lng === request_geo?.lng) match = 'Match';
           }
           return `<addressMatch>${match}</addressMatch>` +
